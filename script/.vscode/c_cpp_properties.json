@@ -1,0 +1,28 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/kestrel1311/ros2_ws/install/ublox_gps/include/**",
+        "/home/kestrel1311/ros2_ws/install/ublox_msgs/include/**",
+        "/home/kestrel1311/ros2_ws/install/ublox_serialization/include/**",
+        "/home/kestrel1311/ros2_ws/install/rtcm_msgs/include/**",
+        "/opt/ros/humble/include/**",
+        "/home/kestrel1311/ros2_ws/src/qualisys_ros/include/**",
+        "/home/kestrel1311/ros2_ws/src/ublox/ublox_gps/include/**",
+        "/home/kestrel1311/ros2_ws/src/ublox/ublox_msgs/include/**",
+        "/home/kestrel1311/ros2_ws/src/ublox/ublox_serialization/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
