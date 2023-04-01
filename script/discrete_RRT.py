@@ -10,11 +10,18 @@ import matplotlib.animation
 from tempfile import NamedTemporaryFile
 from IPython.display import HTML
 
+# Global Functions
 def wrap2pi(x):
     """
     Wraps angle between 0 and 2pi
     """
     return x%(2*np.pi)
+
+
+
+
+
+
 
 class Building:
     """
@@ -35,9 +42,6 @@ class Building:
                     "cB": self.corner_vec}
 
         return building
-
-
-
 
 class Camera:
     """
@@ -124,9 +128,6 @@ class Camera:
         }
         return cam_dict
 
-
-
-
 class DiscreteMap:
     """
     This is a discrete map generator, builds discrete map by combining static and dynamic map
@@ -159,6 +160,38 @@ class DiscreteMap:
         Generate n x n grid map
         """
         X, Y = np.meshgrid(self.x, self.y)
+        return X, Y
+    
+    def bound(self, i_x):
+        """
+        Bound within map
+        """
+        return (i_x[0] >= 0 and i_x[0]<self.n and i_x[1] >= 0 and i_x[1]<self.n)
+    
+    def bound_cam(self, i_x, campos, fov_ang_curr, fov_ang, fov_rng):
+        """
+        Bound outside of camera FOV
+        """
+        # Convert i_x to position
+        i_xPos = self.position(i_x)
+        # distance to node
+        dist = np.sqrt((campos[0]-i_xPos[0])**2 + (campos[1]-i_xPos[1])**2)
+        # Angle to node
+        ang = wrap2pi(np.arctan2(i_xPos[1]-campos[1], i_xPos[0]-campos[0]))
+        
+        return wrap2pi(fov_ang_curr+fov_ang/2)-ang>=0 and wrap2pi(fov_ang_curr-fov_ang/2)-ang<=0 and fov_rng - dist >= 0
+
+    def bound_building(self, i_x, building_group):
+        nB = building_group['nB']
+        currpos = self.position(i_x)
+        bcheck = np.zeros((nB,1))
+        for b in range(nB):
+            bnow = building_group[b]
+            bcheck[b] = (currpos[0] >= bnow[0] and currpos[0] <= bnow[1] and currpos[1] >= bnow[2] and currpos[1] <= bnow[3])
+        sumcheck = 0
+        for b in range(nB):
+            sumcheck += bcheck[b]
+        return sumcheck
 
 
     def graph_map(self, building_group, camera_group):
@@ -224,16 +257,12 @@ class DiscreteMap:
         plt.ylim(-tol, self.y[-1]+tol)
 
 
-
-
 class DiscreteRRT:
     """
     This is a discrete RRT generator, using dynamic programming to find optimal path inbetween vertex
     Input: discrete Map, end time
     Output: Generated RRT
     """
-
-
 
 
 #%%
@@ -246,15 +275,12 @@ if __name__ == "__main__":
         [0.7, 0.9, 0.25, 0.75]
     ])
 
-    
     # Generate Building group
     bGroup = []
     for icor in range(len(corner)):
         icorner = corner[icor]
-        print(icorner)
-
         iB = Building(icorner)
         bGroup.append(iB)
 
     print(bGroup)
-# %%
+#%%
