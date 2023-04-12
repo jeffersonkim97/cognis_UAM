@@ -5,7 +5,10 @@ import shapely
 from shapely import geometry
 from mpl_toolkits import mplot3d
 
+# Custom Classes
 from SE2 import SE2, se2
+from Camera import Camera
+from Dynamic import DynamicMap
 
 # Global functions
 def SE2_log(M):
@@ -90,6 +93,7 @@ class R2T2:
         # map: dictionary
         # key: n, st, dy, curr
         # 'n' = repeat period length
+        # 'ncam' = number of camera present
         # 'st' = static map
         # ['st']['size'] = 4x1 vector [x0, xmax, y0, ymax]
         # ['st']['n'] = number of buildings
@@ -334,7 +338,7 @@ class R2T2:
         count = c
         # Generate qrand
         qrand_x = rn.uniform(-r, r)
-        qrand_y = np.sqrt(r**2 - qrand_x**2)
+        qrand_y = np.sqrt(r**2 - qrand_x**2)*np.sign(rn.uniform(-r, r))
         #qrand_y = rn.uniform(-r, r)
         qrand_th = 2*np.pi*rn.uniform(0,1)
         qrand = (qrand_x + qnear[0], qrand_y + qnear[1], qrand_th)
@@ -504,11 +508,14 @@ class R2T2:
                     # Return route to final point
                     if match_vertex(qcheck, q0):
                         castellan = False
-                        return route
+                        return route       
+
 
 #%%
 if __name__ == "__main__":
     import numpy as np
+    from Camera import Camera
+    from Dynamic import DynamicMap
 
     # Test case
     # Initial, Final Positions
@@ -533,19 +540,68 @@ if __name__ == "__main__":
     ])
 
     # Dynamic Map
-    map_in['n'] = 10
-    map_in['dy'] = {}
+    # This is a continuous function generates camera FOV coverages
+    # Input is map_in, and time input t_in
+    map_in['n'] = t[0]
+    map_in['ncam'] = 1
 
+    # Single camera example, surveying final location xfin
     # Camera Position
-    # TODO
-    # Setup Camera and make continuous dynamic map
+    cam_x = np.array([7.5])
+    cam_y = np.array([0])
+    cam_dict = {}
+    cam_dict['n'] = len(cam_x)
+    cam_dict['x'] = cam_x
+    cam_dict['y'] = cam_y
 
     # Camera Spec
+    tilt_limit = np.array([np.pi/2, 0]) #[upper, lower]
+    fov_ang = np.deg2rad(20)
+    fov_rng = 5 #[m]
+    cam_period = t[0]
+    cam_increment = t[1]
+    cam_dict['spec'] = {}
+    cam_dict['spec']['bound'] = tilt_limit
+    cam_dict['spec']['fov'] = [fov_ang, fov_rng]
+    cam_dict['spec']['cam_time'] = [cam_period, cam_increment]
+    
 
+
+
+
+
+
+
+    
+    cam1 = Camera(cam_dict=cam_dict, x0=cam_x[0], y0=cam_y[0])
+    cawl = cam1.get_fov(x0=cam_x[0], y0=cam_y[0], t_in=3)
+
+    fig = plt.figure()
+    tvec = np.linspace(0, t[0], 21)
+
+    th_vec = []
+    for t_in in tvec:
+        th_vec.append(cam1.get_ctr_theta_t(t_in))
+
+    plt.plot(tvec, np.rad2deg(th_vec), '-r')
+    plt.show()
+
+
+    """
+    fig = plt.figure()
+    for i in range(3):
+        plt.plot(cawl[i,0], cawl[i,1], 'or')
+    plt.axis('equal')
+    plt.show()
+    """
+
+    """
     dynamic_map_time_vec = np.arange(0, t[0], t[1])
     for ti in dynamic_map_time_vec:
         map_in['dy'][str(ti)]
+    """
 
+    asdfafsdasfd
 
     test = R2T2(x0, x1, t, vehicle, map_in)
     RRT = test.R2T2_2D()
