@@ -37,7 +37,7 @@ class Camera:
         h = A/2
         B = 2*np.pi/self.cam_period
 
-        return A/2*np.sin(B*t_in)+h
+        return A/2*np.sin(B*t_in)#+h
     
     def get_fov(self, x0, y0, t_in):
         # Compute FOV at given time t_in

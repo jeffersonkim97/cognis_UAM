@@ -114,13 +114,15 @@ class se2:
         R = self.R()
         if np.isclose(th,0):
             A = 1 - th**2/6*(1 - th**2/20*(1 - th**2/42))
-            B = 1/2*(1 - th**2/12*(1 - th**2/30*(1 - th**2/56)))
-            V = np.array([
+            B = th/2 - th**3/24 + th**5/720
+        else:
+            A = sx/th
+            B = (1 - cx)/th
+        
+        V = np.array([
                 [A, -B],
                 [B, A]
             ])
-        else:
-            V = 1/th*np.array([[sx, -(1-cx)],[1-cx, sx]])
 
         u = V@self.p()
         

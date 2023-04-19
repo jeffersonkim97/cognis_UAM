@@ -16,6 +16,7 @@ class DynamicMap:
         ncam = self.ncam
 
         Cam_on_field = {}
+        Cam_on_field['n'] = ncam
         for nc in range(ncam):
             # Variables
             x0=self.cam_x[nc]
