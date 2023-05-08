@@ -92,6 +92,7 @@ class R2T2:
         # 'radius' = radius
         self.vmax = vehicle['v']
         self.vrad = vehicle['radius']
+        self.vang = vehicle['w']
 
         # map: dictionary
         # key: n, st, dy, curr
@@ -520,7 +521,9 @@ class R2T2:
     def cone_overlap(self, r, qnear, t_in):
         # Randomly select x, y in cone
         #x = rn.uniform(-r, r)
-        th = np.arctan2(self.xfin[1]-qnear[1], self.xfin[0]-qnear[0]) + rn.uniform(0, np.pi/2)
+        th_bound = self.vang*t_in
+        #th = np.arctan2(self.xfin[1]-qnear[1], self.xfin[0]-qnear[0]) + rn.uniform(-th_bound, th_bound)
+        th = qnear[2] + rn.uniform(-th_bound, th_bound)
         x = rn.uniform(0.1*r, r)*np.cos(th)
         y = np.sqrt(r**2 - x**2)*np.sign(rn.uniform(-r, r))
 
@@ -787,14 +790,15 @@ if __name__ == "__main__":
     # Test case
     # Initial, Final Positions
     x0 = np.array([-2.5, 0, 0])
-    x1 = np.array([10, 0, 0])
-    t = [20, .1, 82]
+    x1 = np.array([10, 0, np.pi])
+    t = [20, .1, 62]
     #t = [5, .1, 12.5] # Invalid tf Test
 
     # Vehicle Spec
     vehicle = {}
     vehicle['v'] = 1.25
     vehicle['radius'] = 0.5
+    vehicle['w'] = np.deg2rad(30)
 
     # Map
     map_in = {}

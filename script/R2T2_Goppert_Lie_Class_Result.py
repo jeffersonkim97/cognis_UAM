@@ -92,6 +92,7 @@ class R2T2:
         # 'radius' = radius
         self.vmax = vehicle['v']
         self.vrad = vehicle['radius']
+        self.vang = vehicle['w']
 
         # map: dictionary
         # key: n, st, dy, curr
@@ -133,6 +134,7 @@ class R2T2:
         xf = self.xfin
         dt = self.delt
         trange = self.trange
+        tf = self.endtime
 
         # Set Emptry Storages
         # Vertex:
@@ -148,6 +150,11 @@ class R2T2:
         # Initialize R2T2
         Xi = SE2(x=xi[0], y=xi[1], theta=xi[2])
         Xf = SE2(x=xf[0], y=xf[1], theta=xf[2])
+
+        # Check if of Xf at tf is good:
+        if not self.static_bound(xf) or Xf is None or self.dynamic_bound(xf, self.endtime):
+            raise Exception('Invalid Final Point Xf at tf')
+
         Qnear = SE2(x=xi[0], y=xi[1], theta=xi[2])
         G['vertex'].append(Qnear)
         G['t'].append(0)
@@ -155,12 +162,11 @@ class R2T2:
         tprev = 0
         map_size = self.map_st['size']
         dmap = self.map_dy
-        bad_path = []
+        bad_path = []        
 
         # Start loop, and repeat until route toward final point
         repeat_R2T2 = True
         plot = True
-        plot2D = False
         debug = False
         with2D = True
         counter = 0
@@ -193,45 +199,10 @@ class R2T2:
                 FOV_Poly_xi_t0, FOV_Poly_yi_t0 = camera_i_FOV_Poly.exterior.xy
                 plt.plot(FOV_Poly_xi_t0, FOV_Poly_yi_t0, '-g')
 
-        if plot2D:
-            fig = plt.figure(figsize=(7.5,7.5))            
-            # Graph building
-            for i in range(self.map_st['n']):
-                ibuilding = self.map_st[str(i)]
-                wall = geometry.LineString(ibuilding)
-                building = geometry.Polygon(wall)
-                bx,by = building.exterior.xy
-                plt.plot(bx, by, '-k', label = 'Building')
-
-            # Graph camera at t0
-            cameras_at_t0 = dmap.gen_cam(G['t'][-1])
-            for i in range(cameras_at_t0['n']):
-                camera_i_FOV = cameras_at_t0[str(i)]['FOV']
-                camera_i_FOV_Poly = cameras_at_t0[str(i)]['FOV_Poly']
-                # Plot Camera Location
-                plt.plot(camera_i_FOV[0,0], camera_i_FOV[0,1], 'og', label = 'Camera')
-                # Plot FOV Polygon
-                FOV_Poly_xi_t0, FOV_Poly_yi_t0 = camera_i_FOV_Poly.exterior.xy
-                plt.plot(FOV_Poly_xi_t0, FOV_Poly_yi_t0, '-g')
-
-            # Plot xi, xf
-            plt.plot(xi[0], xi[1], 'xr', label='Initial')
-            plt.plot(xf[0], xf[1], 'xb', label='Final')
-
-            # Plot Settings
-            plt.xlabel('X [m]')
-            plt.ylabel('Y [m]')
-            plt.xlim([map_size[0], map_size[1]])
-            plt.ylim([map_size[2], map_size[3]])
-            plt.grid()
-            plt.legend()
-            plt.show()
-
-        while repeat_R2T2:
+        while repeat_R2T2:        
             # Step 0
             # Setup
             #Qnear_prev = G['vertex'][-1]
-            
             print('=============================')
             print('counter: ', counter)
             # Step 1
@@ -251,7 +222,6 @@ class R2T2:
                 switch = [.8, .1, .1]
                 Qnear = None
                 Qnear_exist = False
-                print(bool(Qnear_exist))
                 while not Qnear_exist:
                     if Qnear is None:
                         choose = rn.uniform(0,1)
@@ -277,40 +247,7 @@ class R2T2:
                 # Find cloest point from qnear
                 Qnear, tnear = self.nearest(G, Qnext.SE2param())
                 tnext = tnear+ti
-
-            """
-            Debug tool
-            if debug:
-                if counter == 0:
-                    Qnear = SE2(0,0,np.pi/2)
-                    Qnext = SE2(0,3,np.pi/2)#SE2(3.724169139935386, 6.702351939209903, 4.93572416536846)
-                    ti = 7.667526152539541
-                    #Qnear = SE2(0, 5, np.pi/2)
-                    #Qnext = SE2(2, 8, 0)
-                    ti = 10
-                    tnear = 0
-                elif counter == 1:
-                    Qnear = Qcurr#SE2(3.4403697706430325, 6.5172588623971555, 0.5993828445723643)
-                    Qnext = SE2(0, 6, np.pi/2)
-                    ti = 3.6185084339182403
-                    tnear = tnext#7.667526152539541
-                elif counter == 2:
-                    Qnear = Qcurr
-                    Qnext = SE2(10, 7, 0)
-                    ti = 10
-                    tnear = tnext
-                elif counter == 3:
-                    Qnear = Qcurr
-                    Qnext = SE2(10, 2, -np.pi/2)
-                    ti = 10
-                    tnear = tnext
-                elif counter == 4:
-                    Qnear = SE2(0, 6, np.pi/2)
-                    Qnext = SE2(-1, 4, -np.pi/2)
-                    ti = 5
-                    tnear = tnext
-                tnext = tnear+ti
-            """
+            
             print('Qnear ', Qnear.SE2param())
             print('Qnext ', Qnext.SE2param())
             print('trange ', trange)
@@ -336,28 +273,21 @@ class R2T2:
                 Qcurr, path_curr = self.current_pos(Qnear, Qnext, Qroute, st_tvec)
                 print('Qcurr ', Qcurr.SE2param())
 
-                # TODO
-                # Dynamic Test Check
-                if debug:
-                    print('==========================')
-                    if counter == 3:
-                        x_to_test = path_curr['x']
-                        y_to_test = path_curr['y']
-                        t_to_test = path_curr['t']
-                        for checking_index in range(len(t_to_test)):
-                            print(x_to_test[checking_index], y_to_test[checking_index], t_to_test[checking_index])
-                            xkek = x_to_test[checking_index]
-                            ykek = y_to_test[checking_index]
-                            tkek = t_to_test[checking_index]
-                            print(bool(self.dynamic_bound((xkek, ykek), tkek)))
-                    print('==========================')
-
-
                 if plot:
                     # 3D Plot
                     # Plot Qnear
                     qrpt = Qnear.SE2param()
                     plt.plot(qrpt[0], qrpt[1], tnear, '.r', alpha=.5, label='Nearest vertex', zorder=15)
+
+                    # Plot Cone
+                    cone_n = 20
+                    r_vec = np.linspace(0, ti*self.vmax, cone_n)
+                    cone_t_vec = np.linspace(tnear, tnext, cone_n)
+                    ang_vec = np.linspace(0, np.pi*2, 20)
+                    for i in range(cone_n):
+                        cone_x = r_vec[i]*np.cos(ang_vec)+qrpt[0]
+                        cone_y = r_vec[i]*np.sin(ang_vec)+qrpt[1]
+                        plt.plot(cone_x, cone_y, cone_t_vec[i], '-m', alpha=0.15)
 
                     # Plot Qnext
                     qnpt = Qnext.SE2param()
@@ -500,12 +430,22 @@ class R2T2:
                                 plt.plot(cx, cy, st_i, '-g', alpha=0.1, zorder=5)
                         plt.plot(cx, cy, st_i, '-g', alpha=1, zorder=5)
 
+                        # Plot Reverse cone
+                        cone_n = 100
+                        r_vec = np.linspace(self.endtime*self.vmax, 0, cone_n)
+                        cone_t_vec = np.linspace(0, self.endtime, cone_n)
+                        ang_vec = np.linspace(0, np.pi*2, 20)
+                        for i in range(cone_n):
+                            cone_x = r_vec[i]*np.cos(ang_vec)+xf[0]
+                            cone_y = r_vec[i]*np.sin(ang_vec)+xf[1]
+                            plt.plot(cone_x, cone_y, cone_t_vec[i], '-c', alpha=0.15)
+
                         # Plot xi, xf
                         if with2D:
                             plt.plot(xi[0], xi[1], 'xr')
                             plt.plot(xf[0], xf[1], 'xb')
                         plt.plot(xi[0], xi[1], 0, '^r')
-                        plt.plot(xf[0], xf[1], G['t'][-1], '^b')
+                        plt.plot(xf[0], xf[1], self.endtime, '^b')
 
                         # Plot Settings
                         plt.xlim([map_size[0], map_size[1]])
@@ -515,6 +455,7 @@ class R2T2:
                         ax.set_ylabel('Y [m]')
                         ax.set_zlabel('t [sec]')
                         plt.ioff() # Interactice Plot Trigger
+                        plt.axis('equal')
                         plt.grid()
                         plt.show()
                     return G
@@ -524,21 +465,15 @@ class R2T2:
             counter += 1
 
             # Break out if loop is too long
-            if np.abs(G['t'][-1]-self.endtime) <= 1e-2 or counter > 150:
+            if np.abs(G['t'][-1]-self.endtime) <= 1e-2 or counter > 3:
                 print('Fail to reach destination in time')
 
                 if plot and not debug:
                     # Plot Static Map
-                    end_time_tvec = np.max(G['t'])
-                    R2T2_tvec = np.arange(0, tnext+ti, self.delt)
-                    for i in range(self.map_st['n']):
-                        ibuilding = self.map_st[str(i)]
-                        wall = geometry.LineString(ibuilding)
-                        building = geometry.Polygon(wall)
-                        bx,by = building.exterior.xy
-                        for st_i in R2T2_tvec:
-                            plt.plot(bx, by, st_i, '-k', alpha=0.1)
-                    plt.plot(bx, by, end_time_tvec, '-k', alpha=1)
+                    R2T2_tvec = np.arange(0, self.endtime, self.delt)
+                    for i in range(5):
+                        plt.plot([bx[i], bx[i]], [by[i], by[i]], [0, self.endtime], '-k')
+                    plt.plot(bx, by, self.endtime, '-k', alpha=1)
 
                     # Plot Dynamic Map
                     dmap = self.map_dy
@@ -548,15 +483,25 @@ class R2T2:
                         for ii in range(ncam):
                             cam_i = cameras[str(ii)]['FOV_Poly']
                             cx, cy = cam_i.exterior.xy
-                            plt.plot(cx, cy, st_i, '-g', alpha=0.1)
-                    plt.plot(cx, cy, end_time_tvec, '-g', alpha=1)
+                            plt.plot(cx, cy, st_i, '-g', alpha=0.1, zorder=5)
+                    plt.plot(cx, cy, st_i, '-g', alpha=1, zorder=5)
 
                     # Plot xi, xf
                     if with2D:
                         plt.plot(xi[0], xi[1], 'xr')
                         plt.plot(xf[0], xf[1], 'xb')
                     plt.plot(xi[0], xi[1], 0, '^r')
-                    plt.plot(xf[0], xf[1], tnext+ti, '^b')
+                    plt.plot(xf[0], xf[1], self.endtime, '^b')
+
+                    # Plot Reverse cone
+                    cone_n = 100
+                    r_vec = np.linspace(self.endtime*self.vmax, 0, cone_n)
+                    cone_t_vec = np.linspace(0, self.endtime, cone_n)
+                    ang_vec = np.linspace(0, np.pi*2, 20)
+                    for i in range(cone_n):
+                        cone_x = r_vec[i]*np.cos(ang_vec)+xf[0]
+                        cone_y = r_vec[i]*np.sin(ang_vec)+xf[1]
+                        plt.plot(cone_x, cone_y, cone_t_vec[i], '-c', alpha=0.15)
 
                     # Plot Settings
                     plt.xlim([map_size[0], map_size[1]])
@@ -566,19 +511,49 @@ class R2T2:
                     ax.set_ylabel('Y [m]')
                     ax.set_zlabel('t [sec]')
                     plt.ioff() # Interactice Plot Trigger
+                    plt.axis('equal')
                     plt.grid()
                     plt.show()  
                 return G
 
 
     # Functios for Step 3
+    def cone_overlap(self, r, qnear, t_in):
+        # Randomly select x, y in cone
+        #x = rn.uniform(-r, r)
+        th_bound = self.vang*t_in
+        #th = np.arctan2(self.xfin[1]-qnear[1], self.xfin[0]-qnear[0]) + rn.uniform(-th_bound, th_bound)
+        th = qnear[2] + rn.uniform(-th_bound, th_bound)
+        x = rn.uniform(0.1*r, r)*np.cos(th)
+        y = np.sqrt(r**2 - x**2)*np.sign(rn.uniform(-r, r))
+
+        # Check if it is in rev_cone conic section 
+        #cond1 = bool((x-self.xfin[0])**2 + (y-self.xfin[1])**2 <= ((self.endtime-t_in)*self.vmax)**2)
+        #cond2 = bool((x-qnear[0])**2 + (y-qnear[1])**2 <= r**2)
+        rev_cone_radius = ((self.endtime-t_in)*self.vmax)
+        rev_cone_section = geometry.Polygon(geometry.Point(self.xfin[0], self.xfin[1]).buffer(rev_cone_radius))
+
+        cone_radius = r
+        cone_section = geometry.Polygon(geometry.Point(qnear[0], qnear[1]).buffer(cone_radius))
+
+        cond1 = rev_cone_section.contains(geometry.Point(x,y))
+        cond2 = rev_cone_section.contains(geometry.Point(x,y))
+
+        if cond1 and cond2:
+            return x, y
+        else:
+            return self.cone_overlap(r, qnear, t_in)
+            
     def gen_node(self, r, qnear, c, t_in):
         count = c
         # Generate qrand
-        qrand_x = rn.uniform(-r, r)
-        qrand_y = np.sqrt(r**2 - qrand_x**2)*np.sign(rn.uniform(-r, r))
-        #qrand_y = rn.uniform(-r, r)
-        qrand_th = 2*np.pi*rn.uniform(0,1)
+        # Make sure sample is in intersection of cone and reverse-cone
+
+        qrand_x, qrand_y = self.cone_overlap(r, qnear, t_in)
+
+        #qrand_th = 2*np.pi*rn.uniform(0,1)
+        #qrand = (qrand_x + qnear[0], qrand_y + qnear[1], qrand_th)
+        qrand_th = np.arctan2(self.xfin[1]-qnear[1], self.xfin[0]-qnear[0])
         qrand = (qrand_x + qnear[0], qrand_y + qnear[1], qrand_th)
         Qrand_SE2 = SE2(qrand[0], qrand[1], qrand[2])
 
@@ -814,14 +789,16 @@ if __name__ == "__main__":
 
     # Test case
     # Initial, Final Positions
-    x0 = np.array([0, 0, 0])
-    x1 = np.array([10, 0, 0])
-    t = [50, .1, 100]
+    x0 = np.array([-2.5, 0, 0])
+    x1 = np.array([10, 0, np.pi])
+    t = [20, .1, 62]
+    #t = [5, .1, 12.5] # Invalid tf Test
 
     # Vehicle Spec
     vehicle = {}
-    vehicle['v'] = 1
+    vehicle['v'] = 1.25
     vehicle['radius'] = 0.5
+    vehicle['w'] = np.deg2rad(30)
 
     # Map
     map_in = {}
@@ -850,7 +827,7 @@ if __name__ == "__main__":
     cam_dict['y'] = cam_y
 
     # Camera Spec
-    tilt_limit = np.array([np.pi/2, 0]) #[upper, lower]
+    tilt_limit = np.array([np.pi, 0]) #[upper, lower]
     fov_ang = np.deg2rad(20)
     fov_rng = 5 #[m]
     cam_period = t[0]
