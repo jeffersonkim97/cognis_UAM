@@ -5,9 +5,11 @@ from shapely import geometry
 # This is a class for single camera setup, which returns
 # 1) Position of camera mounted, 2) FOV area at given time t
 class Camera:
-    def __init__(self, cam_dict, x0, y0):
+    def __init__(self, cam_dict, x0, y0, z0):
         self.x0 = x0
         self.y0 = y0
+        self.z0 = z0
+        self.a = cam_dict['a']
         cam_spec = cam_dict['spec']
         self.tilt_lim = cam_spec['bound']
         self.fov_ang = cam_spec['fov'][0]
@@ -16,17 +18,13 @@ class Camera:
         self.cam_dt = cam_spec['cam_time'][1]
 
     def cam_position(self):
-        return (self.x0, self.y0)
+        return (self.x0, self.y0, self.z0)
     
-    def p1(self, x0, y0, th):
-        x1 = x0 + self.Rc*np.cos(th)
-        y1 = y0 + self.Rc*np.sin(th)
-        return [x1, y1]
+    def cam_radius(self):
+        return self.Rc
     
-    def p2(self, x0, y0, th):
-        x2 = x0 + self.Rc*np.cos(th)
-        y2 = y0 - self.Rc*np.sin(th)
-        return [x2, y2]
+    def cam_FOV(self):
+        return self.fov_ang
     
     def get_ctr_theta_t(self, t_in):
         # Compute angle of FOV centerline, bounded between two tilt limits
@@ -39,39 +37,45 @@ class Camera:
 
         return A/2*np.sin(B*t_in)#+h
     
-    def get_fov(self, x0, y0, t_in):
+    def get_fov(self, x0, y0, z0, t_in):
         # Compute FOV at given time t_in
         th = self.get_ctr_theta_t(t_in)
-        p1 = self.p1(x0,y0,self.fov_ang/2)
-        p2 = self.p2(x0,y0,self.fov_ang/2)
+        d = self.Rc*np.cos(self.fov_ang/2)
 
-        fov = np.vstack(([x0, y0], p1, p2))
+        fov = np.vstack(([x0, y0, z0], [x0+d, y0, z0]))
 
         # Translate to origin
-        trans = np.vstack([[x0, y0],[x0, y0],[x0, y0]])
+        trans = np.vstack([[x0, y0, z0],[x0, y0, z0]])
         fov -= trans
 
         # Rotate to match boundaries
-        R = np.array([
-            [np.cos(th), -np.sin(th)],
-            [np.sin(th), np.cos(th)]
+        R3 = np.array([
+            [np.cos(th), -np.sin(th), 0],
+            [np.sin(th), np.cos(th), 0],
+            [0, 0, 1]
+        ])
+        R2 = np.array([
+            [np.cos(-self.a), 0, np.sin(-self.a)],
+            [0, 1, 0],
+            [-np.sin(-self.a), 0, np.cos(-self.a)],
         ])
 
         #print('rotation: ', np.rad2deg(th))
         
         # Rotate
-        fov = fov@R
+        fov = fov@R3
+        fov = fov@R2
 
         # Translate to position
         fov += trans
 
         return fov
 
-    def gen_fov_polygon(self, x0, y0, t_in):
+    """def gen_fov_polygon(self, x0, y0, t_in):
         fov = self.get_fov(x0, y0, t_in)
 
         fov_list = []
         for i in range(3):
             fov_list.append(fov[i,:])
 
-        return geometry.Polygon(geometry.LineString(fov_list))
+        return geometry.Polygon(geometry.LineString(fov_list)) """

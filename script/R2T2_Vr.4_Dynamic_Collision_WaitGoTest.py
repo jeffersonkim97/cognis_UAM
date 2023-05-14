@@ -194,7 +194,7 @@ class R2T2:
                 plt.plot(FOV_Poly_xi_t0, FOV_Poly_yi_t0, '-g')
 
         if plot2D:
-            fig = plt.figure(figsize=(7.5,7.5))            
+            fig = plt.figure()            
             # Graph building
             for i in range(self.map_st['n']):
                 ibuilding = self.map_st[str(i)]
@@ -226,6 +226,7 @@ class R2T2:
             plt.grid()
             plt.legend()
             plt.show()
+            asdfasdfasf
 
         while repeat_R2T2:
             # Step 0
@@ -248,7 +249,7 @@ class R2T2:
             # 10% -> remain stationary
             # 10% -> route to final point
             if not debug:
-                switch = [.6, .25, .15]
+                switch = [.8, .1, .1]
                 Qnear = None
                 Qnear_exist = False
                 print(bool(Qnear_exist))
@@ -260,7 +261,7 @@ class R2T2:
                             # Get random point x1, and check whether or not it is valid
                             Qnext = self.gen_node(mv_R, Qnear_prev.SE2param(), 0, tprev)
                             Qnear_exist = True
-                        elif choose > switch[0] and choose <= (switch[0]+switch[1]):
+                        elif choose > switch[0] and choose <= switch[2]:
                             print('Stationary')
                             # Statinoary
                             # TODO
@@ -278,39 +279,6 @@ class R2T2:
                 Qnear, tnear = self.nearest(G, Qnext.SE2param())
                 tnext = tnear+ti
 
-            """
-            Debug tool
-            if debug:
-                if counter == 0:
-                    Qnear = SE2(0,0,np.pi/2)
-                    Qnext = SE2(0,3,np.pi/2)#SE2(3.724169139935386, 6.702351939209903, 4.93572416536846)
-                    ti = 7.667526152539541
-                    #Qnear = SE2(0, 5, np.pi/2)
-                    #Qnext = SE2(2, 8, 0)
-                    ti = 10
-                    tnear = 0
-                elif counter == 1:
-                    Qnear = Qcurr#SE2(3.4403697706430325, 6.5172588623971555, 0.5993828445723643)
-                    Qnext = SE2(0, 6, np.pi/2)
-                    ti = 3.6185084339182403
-                    tnear = tnext#7.667526152539541
-                elif counter == 2:
-                    Qnear = Qcurr
-                    Qnext = SE2(10, 7, 0)
-                    ti = 10
-                    tnear = tnext
-                elif counter == 3:
-                    Qnear = Qcurr
-                    Qnext = SE2(10, 2, -np.pi/2)
-                    ti = 10
-                    tnear = tnext
-                elif counter == 4:
-                    Qnear = SE2(0, 6, np.pi/2)
-                    Qnext = SE2(-1, 4, -np.pi/2)
-                    ti = 5
-                    tnear = tnext
-                tnext = tnear+ti
-            """
             print('Qnear ', Qnear.SE2param())
             print('Qnext ', Qnext.SE2param())
             print('trange ', trange)
@@ -477,7 +445,7 @@ class R2T2:
 
                         # Plot Static Map
                         R2T2_tvec = np.arange(0, G['t'][-1], self.delt)
-                        for i in range(self.map_st['n']):
+                        for i in range(2):
                             ibuilding = self.map_st[str(i)]
                             wall = geometry.LineString(ibuilding)
                             building = geometry.Polygon(wall)
@@ -508,6 +476,7 @@ class R2T2:
                         plt.plot(xf[0], xf[1], G['t'][-1], '^b')
 
                         # Plot Settings
+                        plt.axis('equal')
                         plt.xlim([map_size[0], map_size[1]])
                         plt.ylim([map_size[2], map_size[3]])
                         #plt.legend()
@@ -812,10 +781,11 @@ if __name__ == "__main__":
     from Camera import Camera
     from Dynamic import DynamicMap
 
+    """
     # Test case
     # Initial, Final Positions
-    x0 = np.array([0, 0, 0])
-    x1 = np.array([10, 0, 0])
+    x0 = np.array([-9, 0, 0])
+    x1 = np.array([20, 0, 0])
     t = [50, .1, 100]
 
     # Vehicle Spec
@@ -827,11 +797,14 @@ if __name__ == "__main__":
     map_in = {}
     # Static Map
     map_in['st'] = {}
-    map_in['st']['size'] = np.array([-5, 15, -15, 15])
+    map_in['st']['size'] = np.array([-10, 25, -5, 5])
     # Single buliding example
-    map_in['st']['n'] = 1
+    map_in['st']['n'] = 2
     map_in['st']['0'] = np.array([
-        (2.5,5), (7.5,5), (7.5,-5), (2.5,-5)
+        (-10,-5), (-10,-2), (15,-2), (15,-5)
+    ])
+    map_in['st']['1'] = np.array([
+        (-10,5), (-10,2), (15,2), (15,5)
     ])
 
     # Dynamic Map
@@ -842,17 +815,68 @@ if __name__ == "__main__":
 
     # Single camera example, surveying final location xfin
     # Camera Position
-    cam_x = np.array([7.5])
-    cam_y = np.array([0])
+    cam_x = np.array([5])
+    cam_y = np.array([2])
     cam_dict = {}
     cam_dict['n'] = len(cam_x)
     cam_dict['x'] = cam_x
     cam_dict['y'] = cam_y
 
     # Camera Spec
+    tilt_limit = np.array([-np.pi/4, -3*np.pi/4]) #[upper, lower]
+    fov_ang = np.deg2rad(20)
+    fov_rng = 5 #[m]
+    cam_period = t[0]
+    cam_increment = t[1]
+    cam_dict['spec'] = {}
+    cam_dict['spec']['bound'] = tilt_limit
+    cam_dict['spec']['fov'] = [fov_ang, fov_rng]
+    cam_dict['spec']['cam_time'] = [cam_period, cam_increment]"""
+
+    # Test case
+    # Initial, Final Positions
+    x0 = np.array([0, -12, np.pi/2])
+    x1 = np.array([0, 20, np.pi/2])
+    t = [25, .1, 100]
+
+    # Vehicle Spec
+    vehicle = {}
+    vehicle['v'] = 1
+    vehicle['radius'] = 0.5
+
+    # Map
+    map_in = {}
+    # Static Map
+    map_in['st'] = {}
+    map_in['st']['size'] = np.array([-5, 5, -15, 25])
+    # Single buliding example
+    map_in['st']['n'] = 2
+    map_in['st']['0'] = np.array([
+        (-5,-15), (-2,-15), (-2,15), (-5,15)
+    ])
+    map_in['st']['1'] = np.array([
+        (5,-15), (2,-15), (2,15), (5,15)
+    ])
+
+    # Dynamic Map
+    # This is a continuous function generates camera FOV coverages
+    # Input is map_in, and time input t_in
+    map_in['n'] = t[0]
+    map_in['ncam'] = 2
+
+    # Single camera example, surveying final location xfin
+    # Camera Position
+    cam_x = np.array([-2, -2])
+    cam_y = np.array([-5, 10])
+    cam_dict = {}
+    cam_dict['n'] = 2
+    cam_dict['x'] = cam_x
+    cam_dict['y'] = cam_y
+
+    # Camera Spec
     tilt_limit = np.array([np.pi, 0]) #[upper, lower]
     fov_ang = np.deg2rad(20)
-    fov_rng = 7.5 #[m]
+    fov_rng = 4 #[m]
     cam_period = t[0]
     cam_increment = t[1]
     cam_dict['spec'] = {}
