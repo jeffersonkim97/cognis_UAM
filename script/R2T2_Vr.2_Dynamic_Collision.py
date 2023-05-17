@@ -2,13 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random as rn
 import shapely
+import json
 from shapely import geometry
 
 # 3D Plot
 from mpl_toolkits import mplot3d
 
 # Custom Classes
-from SE2 import SE2, se2
+from SE2_Legacy import SE2, se2
 from Camera import Camera
 from Dynamic import DynamicMap
 
@@ -325,14 +326,14 @@ class R2T2:
 
                     # Plot Qnext
                     qnpt = Qnext.SE2param()
-                    plt.plot(qnpt[0], qnpt[1], tnext, 'xr', alpha = .5, label='Next vertex', zorder=15)
+                    #plt.plot(qnpt[0], qnpt[1], tnext, 'xr', alpha = .5, label='Next vertex', zorder=15)
 
                     # Plot Qcurr
                     qcpt = Qcurr.SE2param()
                     plt.plot(qcpt[0], qcpt[1], tnext, '+r', label='Current position reachable at t', zorder=15)
                     
                     # Plot Current Path
-                    plt.plot(path_curr['x'], path_curr['y'], path_curr['t'],'-r', linewidth=5, alpha=.25, label='Computed route', zorder=15)
+                    #plt.plot(path_curr['x'], path_curr['y'], path_curr['t'],'-r', linewidth=5, alpha=.25, label='Computed route', zorder=15)
 
                     # 2D Plot
                     if with2D:
@@ -340,16 +341,16 @@ class R2T2:
                         plt.plot(qrpt[0], qrpt[1], '.b', alpha=.5, label='Nearest Vertex in 2D', zorder=15)
 
                         # Plot Qnext
-                        plt.plot(qnpt[0], qnpt[1], 'xb', alpha = .5, label='Next vertex in 2D', zorder=15)
+                        #plt.plot(qnpt[0], qnpt[1], 'xb', alpha = .5, label='Next vertex in 2D', zorder=15)
 
                         # Plot Qcurr
                         plt.plot(qcpt[0], qcpt[1], '+b', label='Current position reachable at t in 2D', zorder=15)
 
                         # Plot Projection
-                        plt.plot([qcpt[0], qcpt[0]], [qcpt[1], qcpt[1]], [0, tnext], '--k', alpha=0.1, zorder=15)
+                        #plt.plot([qcpt[0], qcpt[0]], [qcpt[1], qcpt[1]], [0, tnext], '--k', alpha=0.1, zorder=15)
                         
                         # Plot Current Path
-                        plt.plot(path_curr['x'], path_curr['y'], '-b', linewidth=5, alpha=.25, label='Comptued route in 2D', zorder=15)
+                        #plt.plot(path_curr['x'], path_curr['y'], '-b', linewidth=5, alpha=.25, label='Comptued route in 2D', zorder=15)
                     
                     
                     if debug and counter == 3:
@@ -435,8 +436,10 @@ class R2T2:
                             ed = cawl[str(cawl_key[ri])]
                             #plt.plot(ed['x'], ed['y'], np.linspace(route_tvec[cawl_counter], route_tvec[cawl_counter+1], len(ed['x'])), '--r')
                             plt.plot(ed['x'], ed['y'], ed['t'], '--r', zorder=10)
+                            plt.plot(ed['x'], ed['y'], ed['t'], '-r', linewidth=5, alpha=.25, label='Comptued route in 2D', zorder=15)
                             if with2D:
                                 plt.plot(ed['x'], ed['y'], '--b', zorder=10)
+                                plt.plot(ed['x'], ed['y'], '-b', linewidth=5, alpha=.25)
                             cawl_counter += 1
 
                         # Plot Static Map
@@ -481,6 +484,8 @@ class R2T2:
                         plt.ioff() # Interactice Plot Trigger
                         plt.grid()
                         plt.show()
+                    with open('R2T2.txt', 'w') as R2T2_output:
+                        R2T2_output.write(json.dumps(G))
                     return G
 
             # If not, we update for next loop
@@ -531,7 +536,7 @@ class R2T2:
                     ax.set_zlabel('t [sec]')
                     plt.ioff() # Interactice Plot Trigger
                     plt.grid()
-                    plt.show()  
+                    plt.show()
                 return G
 
 
@@ -695,7 +700,7 @@ class R2T2:
             curr_path['theta'].append(thetat)
 
             # Check if current position is on collision point
-            if self.collision_check(self.vrad, Q0, Q, [tt], 1):
+            if self.collision_check(self.vrad, Q0, Q, [qt_vec[0]+tscale*tt], 1):
                 return SE2(x=xt, y=yt, theta=thetat), curr_path
             
         return SE2(x=xt, y=yt, theta=thetat), curr_path
@@ -829,5 +834,7 @@ if __name__ == "__main__":
     map_in['dy'] = dmap
 
     test = R2T2(x0, x1, t, vehicle, map_in)
-    RRT = test.R2T2_2D()
+    R2T2_result = test.R2T2_2D()
+    with open('R2T2_out.txt', 'w') as R2T2_output:
+        R2T2_output.write(json.dumps(R2T2_result))
 #%%

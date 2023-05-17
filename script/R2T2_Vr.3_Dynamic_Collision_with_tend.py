@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random as rn
 import shapely
+import json
 from shapely import geometry
 
 # 3D Plot
@@ -248,7 +249,7 @@ class R2T2:
             # 10% -> remain stationary
             # 10% -> route to final point
             if not debug:
-                switch = [.6, .25, .15]
+                switch = [.8, .5, .1]
                 Qnear = None
                 Qnear_exist = False
                 print(bool(Qnear_exist))
@@ -277,40 +278,6 @@ class R2T2:
                 # Find cloest point from qnear
                 Qnear, tnear = self.nearest(G, Qnext.SE2param())
                 tnext = tnear+ti
-
-            """
-            Debug tool
-            if debug:
-                if counter == 0:
-                    Qnear = SE2(0,0,np.pi/2)
-                    Qnext = SE2(0,3,np.pi/2)#SE2(3.724169139935386, 6.702351939209903, 4.93572416536846)
-                    ti = 7.667526152539541
-                    #Qnear = SE2(0, 5, np.pi/2)
-                    #Qnext = SE2(2, 8, 0)
-                    ti = 10
-                    tnear = 0
-                elif counter == 1:
-                    Qnear = Qcurr#SE2(3.4403697706430325, 6.5172588623971555, 0.5993828445723643)
-                    Qnext = SE2(0, 6, np.pi/2)
-                    ti = 3.6185084339182403
-                    tnear = tnext#7.667526152539541
-                elif counter == 2:
-                    Qnear = Qcurr
-                    Qnext = SE2(10, 7, 0)
-                    ti = 10
-                    tnear = tnext
-                elif counter == 3:
-                    Qnear = Qcurr
-                    Qnext = SE2(10, 2, -np.pi/2)
-                    ti = 10
-                    tnear = tnext
-                elif counter == 4:
-                    Qnear = SE2(0, 6, np.pi/2)
-                    Qnext = SE2(-1, 4, -np.pi/2)
-                    ti = 5
-                    tnear = tnext
-                tnext = tnear+ti
-            """
             print('Qnear ', Qnear.SE2param())
             print('Qnext ', Qnext.SE2param())
             print('trange ', trange)
@@ -322,7 +289,9 @@ class R2T2:
             # Step 5
             # Generate Path and check collision
             # This is done in SE2 Lie Group for 2D R2T2
+            cost_R2T2 = self.distance_R2T2(ti, Qnear, Qnext)
             Qroute = self.local_path_planner(Qnear, Qnext, self.vmax*ti)
+            #Qroute = self.local_path_planner(Qnear, Qnext, cost_R2T2)
 
             # Check Collision
             # If collision occur, we ignore that path
@@ -335,23 +304,6 @@ class R2T2:
                 # Compute current position as time may differ
                 Qcurr, path_curr = self.current_pos(Qnear, Qnext, Qroute, st_tvec)
                 print('Qcurr ', Qcurr.SE2param())
-
-                # TODO
-                # Dynamic Test Check
-                if debug:
-                    print('==========================')
-                    if counter == 3:
-                        x_to_test = path_curr['x']
-                        y_to_test = path_curr['y']
-                        t_to_test = path_curr['t']
-                        for checking_index in range(len(t_to_test)):
-                            print(x_to_test[checking_index], y_to_test[checking_index], t_to_test[checking_index])
-                            xkek = x_to_test[checking_index]
-                            ykek = y_to_test[checking_index]
-                            tkek = t_to_test[checking_index]
-                            print(bool(self.dynamic_bound((xkek, ykek), tkek)))
-                    print('==========================')
-
 
                 if plot:
                     # 3D Plot
@@ -386,45 +338,6 @@ class R2T2:
                         
                         # Plot Current Path
                         plt.plot(path_curr['x'], path_curr['y'], '-b', linewidth=5, alpha=.25, label='Comptued route in 2D', zorder=15)
-                    
-                    
-                    if debug and counter == 3:
-                        a = Qnear.SE2param()
-                        b = Qcurr.SE2param()
-                        edge = [a[0], b[0]], [a[1], b[1]], [tnear, tnear+ti]
-                        G['vertex'].append(Qcurr)
-                        G['edge'][str(counter)] = path_curr
-                        G['neighbor'][str(counter)] = [(a[0], a[1], tnear), (b[0], b[1], tnear + ti)]
-                        G['t'].append(tnear + ti)
-
-                        # Plot Static Map
-                        R2T2_tvec = np.arange(0, G['t'][-1], self.delt)
-                        for i in range(self.map_st['n']):
-                            ibuilding = self.map_st[str(i)]
-                            wall = geometry.LineString(ibuilding)
-                            building = geometry.Polygon(wall)
-                            bx,by = building.exterior.xy
-                            for st_i in R2T2_tvec:
-                                plt.plot(bx, by, st_i, '-k', alpha=0.1)
-                        plt.plot(bx, by, st_i, '-k', alpha=1)
-
-                        # Plot Dynamic Map
-                        dmap = self.map_dy
-                        for st_i in R2T2_tvec:
-                            cameras = dmap.gen_cam(st_i)
-                            ncam = cameras['n']
-                            for ii in range(ncam):
-                                cam_i = cameras[str(ii)]['FOV_Poly']
-                                cx, cy = cam_i.exterior.xy
-                                plt.plot(cx, cy, st_i, '-g', alpha=0.1)
-                        plt.plot(cx, cy, st_i, '-g', alpha=1)
-
-                        plt.xlim([map_size[0], map_size[1]])
-                        plt.ylim([map_size[2], map_size[3]])
-                        #plt.legend()
-                        plt.ioff() # Interactice Plot Trigger
-                        plt.show()
-                    
 
             # Step 6
             # Check if destination is reached
@@ -517,6 +430,8 @@ class R2T2:
                         plt.ioff() # Interactice Plot Trigger
                         plt.grid()
                         plt.show()
+                    with open('R2T2.txt', 'w') as R2T2_output:
+                        R2T2_output.write(json.dumps(G))
                     return G
 
             # If not, we update for next loop
@@ -524,7 +439,7 @@ class R2T2:
             counter += 1
 
             # Break out if loop is too long
-            if np.abs(G['t'][-1]-self.endtime) <= 1e-2 or counter > 150:
+            if np.abs(G['t'][-1]-self.endtime) <= 1e-2 or counter > 100:
                 print('Fail to reach destination in time')
 
                 if plot and not debug:
@@ -706,6 +621,16 @@ class R2T2:
 
         return X0.matrix()@V
     
+    def distance_R2T2(self, ti, X0, X1):
+        u, R, d = self.find_u_R_d(X0, X1)
+        cost = self.vmax*ti
+        if d > 0.1 and np.abs(R) < 0.5:
+            cost = np.infty
+        
+        if u < 0:
+            cost = np.infty
+        return cost
+    
     def current_pos(self, Q0, Q1, V, qt_vec):
         """
         TODO
@@ -816,11 +741,11 @@ if __name__ == "__main__":
     # Initial, Final Positions
     x0 = np.array([0, 0, 0])
     x1 = np.array([10, 0, 0])
-    t = [50, .1, 100]
+    t = [75, .1, 150]
 
     # Vehicle Spec
     vehicle = {}
-    vehicle['v'] = 1
+    vehicle['v'] = 1.5
     vehicle['radius'] = 0.5
 
     # Map
