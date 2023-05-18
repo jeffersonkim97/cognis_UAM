@@ -315,45 +315,6 @@ class R2T2:
                     
                     # Plot Current Path
                     plt.plot(path_curr['x'], path_curr['y'], '-b', linewidth=5, alpha=.25, label='Comptued route in 2D', zorder=15)
-                
-                
-                if debug and counter == 3:
-                    a = Qnear.SE2param()
-                    b = Qnext.SE2param()
-                    edge = [a[0], b[0]], [a[1], b[1]], [tnear, tnext]
-                    G['vertex'].append(Qnext)
-                    G['edge'][str(counter)] = path_curr
-                    G['neighbor'][str(counter)] = [(a[0], a[1], tnear), (b[0], b[1], tnext)]
-                    G['t'].append(tnext)
-
-                    # Plot Static Map
-                    R2T2_tvec = np.arange(0, G['t'][-1], self.delt)
-                    for i in range(self.map_st['n']):
-                        ibuilding = self.map_st[str(i)]
-                        wall = geometry.LineString(ibuilding)
-                        building = geometry.Polygon(wall)
-                        bx,by = building.exterior.xy
-                        for st_i in R2T2_tvec:
-                            plt.plot(bx, by, st_i, '-k', alpha=0.1)
-                    plt.plot(bx, by, st_i, '-k', alpha=1)
-
-                    # Plot Dynamic Map
-                    dmap = self.map_dy
-                    for st_i in R2T2_tvec:
-                        cameras = dmap.gen_cam(st_i)
-                        ncam = cameras['n']
-                        for ii in range(ncam):
-                            cam_i = cameras[str(ii)]['FOV_Poly']
-                            cx, cy = cam_i.exterior.xy
-                            plt.plot(cx, cy, st_i, '-g', alpha=0.1)
-                    plt.plot(cx, cy, st_i, '-g', alpha=1)
-
-                    plt.xlim([map_size[0], map_size[1]])
-                    plt.ylim([map_size[2], map_size[3]])
-                    #plt.legend()
-                    plt.ioff() # Interactice Plot Trigger
-                    plt.show()
-                
 
         # Step 6
         # Check if destination is reached
@@ -446,8 +407,10 @@ class R2T2:
                     plt.ioff() # Interactice Plot Trigger
                     plt.grid()
                     plt.show()
-                with open('R2T2.txt', 'w') as R2T2_output:
-                    R2T2_output.write(json.dumps(G))
+                machine_spirit = json.dumps(G)
+                f = open("RRT_Result.json", "w")
+                f.write(machine_spirit)
+                f.close()
                 return G
 
             # If not, we update for next loop
@@ -499,6 +462,14 @@ class R2T2:
                     plt.ioff() # Interactice Plot Trigger
                     plt.grid()
                     plt.show()
+
+                for iii in range(len(G['vertex'])):
+                    G['vertex'][iii] = G['vertex'][iii].SE2param()
+                machine_spirit = json.dumps(G)
+                f = open("RRT_Result.json", "w")
+                f.write(machine_spirit)
+                f.close()
+
                 return G
 
 
