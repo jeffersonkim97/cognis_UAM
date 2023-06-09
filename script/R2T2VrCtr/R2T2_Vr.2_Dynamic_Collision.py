@@ -213,7 +213,7 @@ class R2T2:
             # 10% -> remain stationary
             # 10% -> route to final point
             if not debug:
-                switch = [.8, .1, .1]
+                switch = [.7, .2, .1]
                 Qnear = None
                 Qnear_exist = False
                 print(bool(Qnear_exist))
@@ -225,7 +225,7 @@ class R2T2:
                             # Get random point x1, and check whether or not it is valid
                             Qnext = self.gen_node(mv_R, Qnear_prev.SE2param(), 0, tprev)
                             Qnear_exist = True
-                        elif choose > switch[0] and choose <= switch[2]:
+                        elif choose > switch[0] and choose <= switch[0]+switch[1]:
                             print('Stationary')
                             # Statinoary
                             # TODO
@@ -238,44 +238,12 @@ class R2T2:
                             Qnear_exist = True
                     print(bool(Qnear_exist))
 
+
                 # Step 4
                 # Find cloest point from qnear
                 Qnear, tnear = self.nearest(G, Qnext.SE2param())
                 tnext = tnear+ti
 
-            """
-            Debug tool
-            if debug:
-                if counter == 0:
-                    Qnear = SE2(0,0,np.pi/2)
-                    Qnext = SE2(0,3,np.pi/2)#SE2(3.724169139935386, 6.702351939209903, 4.93572416536846)
-                    ti = 7.667526152539541
-                    #Qnear = SE2(0, 5, np.pi/2)
-                    #Qnext = SE2(2, 8, 0)
-                    ti = 10
-                    tnear = 0
-                elif counter == 1:
-                    Qnear = Qcurr#SE2(3.4403697706430325, 6.5172588623971555, 0.5993828445723643)
-                    Qnext = SE2(0, 6, np.pi/2)
-                    ti = 3.6185084339182403
-                    tnear = tnext#7.667526152539541
-                elif counter == 2:
-                    Qnear = Qcurr
-                    Qnext = SE2(10, 7, 0)
-                    ti = 10
-                    tnear = tnext
-                elif counter == 3:
-                    Qnear = Qcurr
-                    Qnext = SE2(10, 2, -np.pi/2)
-                    ti = 10
-                    tnear = tnext
-                elif counter == 4:
-                    Qnear = SE2(0, 6, np.pi/2)
-                    Qnext = SE2(-1, 4, -np.pi/2)
-                    ti = 5
-                    tnear = tnext
-                tnext = tnear+ti
-            """
             print('Qnear ', Qnear.SE2param())
             print('Qnext ', Qnext.SE2param())
             print('trange ', trange)
@@ -412,7 +380,7 @@ class R2T2:
                             bx,by = building.exterior.xy
                             for st_i in R2T2_tvec:
                                 # Currently set alpha = 0
-                                plt.plot(bx, by, st_i, '-k', alpha=0)
+                                plt.plot(bx, by, st_i, '-k', alpha=0.1)
                         for i in range(5):
                             plt.plot([bx[i], bx[i]], [by[i], by[i]], [0, st_i], '-k')
                         plt.plot(bx, by, st_i, '-k', alpha=1)
@@ -750,9 +718,9 @@ if __name__ == "__main__":
 
     # Test case
     # Initial, Final Positions
-    x0 = np.array([0, 0, np.pi/2])
-    x1 = np.array([12.5, 0, -np.pi/2])
-    t = [20, .1]
+    x0 = np.array([10, -10, -np.pi])
+    x1 = np.array([10, 10, 0])
+    t = [30, .1]
 
     # Vehicle Spec
     vehicle = {}
@@ -765,9 +733,13 @@ if __name__ == "__main__":
     map_in['st'] = {}
     map_in['st']['size'] = np.array([-5, 15, -15, 15])
     # Single buliding example
-    map_in['st']['n'] = 1
+    map_in['st']['n'] = 2
+    #map_in['st']['0'] = np.array([(2.5,5), (7.5,5), (7.5,-5), (2.5,-5)])
     map_in['st']['0'] = np.array([
-        (2.5,5), (7.5,5), (7.5,-5), (2.5,-5)
+        (-5,15), (-2.5,15), (-2.5,-15), (-5,-15)
+    ])
+    map_in['st']['1'] = np.array([
+        (2.5,-1.5), (15, -1.5), (15,1.5), (2.5,1.5)
     ])
 
     # Dynamic Map
@@ -778,7 +750,7 @@ if __name__ == "__main__":
 
     # Single camera example, surveying final location xfin
     # Camera Position
-    cam_x = np.array([7.5])
+    cam_x = np.array([-2.5])
     cam_y = np.array([0])
     cam_dict = {}
     cam_dict['n'] = len(cam_x)
@@ -786,9 +758,9 @@ if __name__ == "__main__":
     cam_dict['y'] = cam_y
 
     # Camera Spec
-    tilt_limit = np.array([np.pi/2, 0]) #[upper, lower]
-    fov_ang = np.deg2rad(35)
-    fov_rng = 6 #[m]
+    tilt_limit = np.array([np.pi, 0]) #[upper, lower]
+    fov_ang = np.deg2rad(10)
+    fov_rng = 5 #[m]
     cam_period = t[0]
     cam_increment = t[1]
     cam_dict['spec'] = {}
