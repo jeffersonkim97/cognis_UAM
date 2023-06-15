@@ -627,7 +627,7 @@ class R2T2:
 
     # Functions for Step 4
     def nearest(self, G, xi):
-        3# Find nearest vertex
+        # Find nearest vertex
         range_vec = []
         for ii in range(len(G['vertex'])):
             VERT_avail = G['vertex'][ii]

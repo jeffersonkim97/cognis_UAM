@@ -1,5 +1,5 @@
 import numpy as np
-from base import EPS, LieAlgebra, LieGroup
+from LieGroup.base import EPS, LieAlgebra, LieGroup
 from SO2 import so2, SO2, wrap
     
 class se2algebra(LieAlgebra):
