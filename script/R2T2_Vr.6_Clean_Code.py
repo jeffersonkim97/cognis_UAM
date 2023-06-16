@@ -195,13 +195,47 @@ class R2T2:
                 Qcurr, path_curr = self.current_pos(Qnear, Qnext, Qroute, st_tvec)
                 print('Qcurr: ', Qcurr.to_vec)
 
-                # Step 6
-                # Check if destination reached
+            # Step 6
+            # Check if destination reached
                 a = Qnear.to_vec
                 b = Qcurr.to_vec
+                edge = [a[0], b[0]], [a[1], b[1]], [tnear, tnear + ti]
+                G['vertex'].append(Qcurr)
+                G['edge'][str(counter)] = path_curr
+                G['neighbor'][str(counter)] = [(a[0], a[1], tnear), (b[0], b[1], tnear + ti)]
+                G['t'].append(tnear + ti)
 
+            # Update termination conditoin
+                dist_curr = self.get_range(Qcurr, Xf)
+                if dist_curr < dist_best:
+                    dist_best = dist_curr
+                    Qnear_prev = Qcurr
+                    tprev = tnear + ti
 
+            # If within tolerance, stop and compute path
+                if dist_best < dist_tol:
+                    print('Destination Reached')
+                    # Stop iteration
+                    repeat_R2T2 = False
 
+                    # Find route to Final Point
+                    route = self.rrt_course(G)
+                    G['route'] = route
+                    route_tvec = []
+                    for ri in np.flip(route):
+                        route_tvec.append(G['t'][ri])
+                    route_tvec.append(tnext)
+
+                    return G
+            
+            # If not reached, update for next loop
+            counter += 1
+            
+            # Break out if loop is too long
+            if np.abs(G['t'][-1] - self.endtime) <= 1e-2 or counter > 150:
+                print('Fail to reach destination in time')
+                return G
+                
 
         
     # Functiosn for Step 3
@@ -332,6 +366,41 @@ class R2T2:
             
         return False
 
+    # Functions for Step 7
+    def rrt_course(self, G):
+        print('Plotting Course')
+        neighbor = G['neighbor']
+        key_list = neighbor.keys()
+
+        # Route Index
+        route = []
+        
+        def match_vertex(v0, v1):
+            tol = 1e-2
+            if np.abs(v0[0]-v1[0]) < tol and np.abs(v0[1]-v1[1]) < tol:
+                return True
+            else:
+                return False
+            
+        # Start from initial point
+        q0 = self.Xinit
+        qf = self.Xfin
+        qcheck = qf
+
+        # Find matching vertices
+        castellan = True
+        while castellan:
+            print('Awakening the Machine Spirit...')
+            for ii in range(len(key_list)):
+                # Extract iith key
+                currkey = list(key_list)[ii]
+                if match_vertex(qcheck, neighbor[str(currkey)][1]):
+                    route.append(ii)
+                    qcheck = neighbor[str(currkey)][0]
+                    # Return route to final point
+                    if match_vertex(qcheck, q0):
+                        castellan = False
+                        return route
 
 
 
