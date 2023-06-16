@@ -12,7 +12,7 @@ from Dynamic import DynamicMap
 
 # LieGroup Classes
 import sys
-sys.path.insert(1, '/home/kestrel1311/ros2_ws/src/cognis_UAM/script/LieGroup')
+sys.path.insert(1, '/home/kestrel1311/git/ros2_ws/src/cognis_UAM/script/LieGroup')
 from SE3 import se3, SE3
 from SO3 import so3, DCM, Euler, MRP, Quat
 from SE2 import se2, SE2
@@ -187,6 +187,19 @@ class R2T2:
             # Generate path and check collision
             Qroute = self.local_path_planner(Qnear, Qnext, self.vmax*ti)
 
+            # Check collision
+            if self.collision_check(self.vrad, Qnear, Qroute, st_tvec):
+                bad_path.append(Qnext)
+                print("Route Collision Detected")
+            else:
+                Qcurr, path_curr = self.current_pos(Qnear, Qnext, Qroute, st_tvec)
+                print('Qcurr: ', Qcurr.to_vec)
+
+                # Step 6
+                # Check if destination reached
+                a = Qnear.to_vec
+                b = Qcurr.to_vec
+
 
 
 
@@ -285,6 +298,39 @@ class R2T2:
         dy = M.to_vec[1]
         dth = M.to_vec[2]
         
+        d = np.sqrt(dx**2 + dy**2)
+        alpha = np.arctan2(dy, dx)
+        
+        if np.abs(alpha) > 1e-3:
+            R = d/(2*np.sin(alpha))
+            u = 2*R*alpha
+        else:
+            R = np.infty
+            u = d
+
+        return u, R, d
+
+    def collision_check(self, vehicle_radius, Q0, Q1, qtvec):
+        V = Q0.inv @ Q1.to_matrix
+        v = V.log
+        steps = len(qtvec)
+        test_vector = np.linspace(0, 1, steps)
+        for tt in test_vector:
+            Q = Q0.to_matrix @ SE2(v*tt)
+            xt = Q.to_vec[0]
+            yt = Q.to_vec[1]
+            thetat = Q.to_vec[2]
+
+            if not self.in_map(Q.to_vec):
+                if bool(self.building_bound(Q.to_vec)):
+                    return True
+            
+            t_in_to_test, = np.where(test_vector == tt)
+            t_to_test = qtvec[t_in_to_test[0]]
+            if bool(self.dynamic_bound((xt, yt), t_to_test)):
+                return True
+            
+        return False
 
 
 
