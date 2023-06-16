@@ -116,28 +116,6 @@ class R2T2:
         dist_best = self.get_range(Xi, Xf)
         dist_tol = 1e-1
 
-        # Plot Setup
-        if plot:
-            fig = plt.figure(figsize=(7.5, 7.5))
-            ax = fig.add_subplot(111,projection='3d')
-            
-            # Buildings
-            for ib in range(self.map_st['n']):
-                ibuilding = self.map_st[str(ib)]
-                wall = geometry.LineString(ibuilding)
-                building = geometry.Polygon(wall)
-                bx, by = building.exterior.xy
-                plt.plot(bx, by, 0, '-k', label='Building')
-
-            # Initial Sensor Deployment
-            cameras_at_t0 = dmap.gen_cam(G['t'][-1])
-            for ic in range(cameras_at_t0['n']):
-                camera_i_FOV = cameras_at_t0[str(ic)]['FOV']
-                camera_i_FOV_Poly = camera_i_FOV[str(ic)]['FOV_Poly']
-                # Plot Camera Location
-                FOV_Poly_xi_t0, FOV_Poly_yi_t0 = camera_i_FOV_Poly.exterior.xy
-                plt.plot(FOV_Poly_xi_t0, FOV_Poly_yi_t0, 0, '-g')
-
         # Start R2T2 Iteration
         while repeat_R2T2:
             # Step 0: Setup
@@ -152,7 +130,8 @@ class R2T2:
 
             # Step 3: Select movement
             # Currently we don't do weighted sampling
-            switch = [0.8, 0.1, 0.1]
+            #switch = [0.8, 0.1, 0.1]
+            switch = [1, 0, 0]
             Qnear = None
             Qnear_exist = False
             while not Qnear_exist:
@@ -160,7 +139,7 @@ class R2T2:
                 if choose >= 0 and choose <= switch[0]:
                     print('Random Node')
                     # Sample random point
-                    Qnext = self.gen_node(mv_R, Qnear_prev.to_vec, tprev)
+                    Qnext = self.gen_node(mv_R, SE2.to_vec(Qnear_prev.to_matrix), tprev)
                     Qnear_exist = True
                 elif choose > switch[0] and choose <= (switch[0]+switch[1]):
                     print('Stationary')
@@ -171,34 +150,34 @@ class R2T2:
                     print('Final')
                     Qnext = Xf
                     Qnear_exist = True
-            
+            print('Qnext :', SE2.to_vec(Qnext.to_matrix))
+
             # Step 4
             # Find closest point (RRT* Implementation)
-            Qnear, tnear = self.nearest(G, Qnext.to_vec)
+            Qnear, tnear = self.nearest(G, SE2.to_vec(Qnext.to_matrix))
             tnext = tnear + ti
 
             # Print out variables to check
-            print('Qnear :', Qnear.to_vec)
-            print('Qnext :', Qnext.to_vec)
+            print('Qnear :', SE2.to_vec(Qnear.to_matrix))
             print('ti    : ', ti)
             st_tvec = np.arange(tnear, tnext, self.delt)
 
             # Step 5
             # Generate path and check collision
-            Qroute = self.local_path_planner(Qnear, Qnext, self.vmax*ti)
+            Qroute = SE2(SE2.to_vec(self.local_path_planner(Qnear, Qnext, self.vmax*ti)))
 
             # Check collision
-            if self.collision_check(self.vrad, Qnear, Qroute, st_tvec):
+            if self.collision_check(self.vradius, Qnear, Qroute, st_tvec):
                 bad_path.append(Qnext)
                 print("Route Collision Detected")
             else:
                 Qcurr, path_curr = self.current_pos(Qnear, Qnext, Qroute, st_tvec)
-                print('Qcurr: ', Qcurr.to_vec)
+                print('Qcurr: ', SE2.to_vec(Qcurr.to_matrix))
 
             # Step 6
             # Check if destination reached
-                a = Qnear.to_vec
-                b = Qcurr.to_vec
+                a = SE2.to_vec(Qnear.to_matrix)
+                b = SE2.to_vec(Qcurr.to_matrix)
                 edge = [a[0], b[0]], [a[1], b[1]], [tnear, tnear + ti]
                 G['vertex'].append(Qcurr)
                 G['edge'][str(counter)] = path_curr
@@ -249,14 +228,14 @@ class R2T2:
         qrand_th = rn.uniform(0, 2*np.pi)
         qrand_x = qrand_r*np.cos(qrand_th)
         qrand_y = qrand_r*np.sin(qrand_th)
-        qrand = np.array([qrand_x + qnear[0], qrand_y + qnear[1], qrand_th])
+        qrand = np.array([qrand_x+qnear[0], qrand_y+qnear[1], qrand_th])
         Qrand_SE2 = SE2(qrand)
 
         # Check if random sample is valid
-        if self.static_bound(qrand) and not Qrand_SE2 is None and not self.dynamic_bound(qrand, t_in):
+        if self.static_bound(qrand) and (not Qrand_SE2 is None) and not self.dynamic_bound(qrand, t_in):
             return Qrand_SE2
         else:
-            self.gen_node(r, qnear, t_in)
+            return self.gen_node(r, qnear, t_in)
 
     def static_bound(self, xi):
         # Check if random sample's validity
@@ -301,7 +280,7 @@ class R2T2:
         range_vec = []
         for ii in range(len(G['vertex'])):
             VERT_avail = G['vertex'][ii]
-            vert_avail = VERT_avail.to_vec
+            vert_avail = SE2.to_vec(VERT_avail.to_matrix)
             temp = G['t'][ii]
             range_vec.append(np.sqrt((xi[0]-vert_avail[0])**2 + (xi[1]-vert_avail[1])**2))
         Xnear = G['vertex'][range_vec.index(min(range_vec))]
@@ -323,15 +302,18 @@ class R2T2:
             omega = u/R
 
         v = se2(np.array([u, 0, omega]))
-        V = v.exp
+        V = SE2.exp(v)
+
+        # This returns ndarray
+        return X0@V
 
     def find_u_R_d(self, X0, X1):
         # Compute arc length, radius, distance
         M = X0.inv @ X1.to_matrix
-        dx = M.to_vec[0]
-        dy = M.to_vec[1]
-        dth = M.to_vec[2]
-        
+        dx = SE2.to_vec(M)[0]
+        dy = SE2.to_vec(M)[1]
+        dth = SE2.to_vec(M)[2]
+                
         d = np.sqrt(dx**2 + dy**2)
         alpha = np.arctan2(dy, dx)
         
@@ -345,18 +327,24 @@ class R2T2:
         return u, R, d
 
     def collision_check(self, vehicle_radius, Q0, Q1, qtvec):
-        V = Q0.inv @ Q1.to_matrix
-        v = V.log
+        V = SE2(SE2.to_vec(Q0 @ Q1))
+        print(V)
+        v = SE2.log(V)
         steps = len(qtvec)
         test_vector = np.linspace(0, 1, steps)
         for tt in test_vector:
-            Q = Q0.to_matrix @ SE2(v*tt)
-            xt = Q.to_vec[0]
-            yt = Q.to_vec[1]
-            thetat = Q.to_vec[2]
+            print(type(v))
+            print(v)
+            print(SE2.to_vec(v))
+            print('\n')
+            afdasfdasf
+            Q = Q0.to_matrix @ SE2(v.to_vec*tt)
+            xt = SE2.to_vec(Q.to_matrix)[0]
+            yt = SE2.to_vec(Q.to_matrix)[1]
+            thetat = SE2.to_vec(Q.to_matrix)[2]
 
-            if not self.in_map(Q.to_vec):
-                if bool(self.building_bound(Q.to_vec)):
+            if not self.in_map(SE2.to_vec(Q.to_matrix)):
+                if bool(self.building_bound(SE2.to_vec(Q.to_matrix))):
                     return True
             
             t_in_to_test, = np.where(test_vector == tt)
