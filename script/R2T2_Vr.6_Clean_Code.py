@@ -13,10 +13,7 @@ from Dynamic import DynamicMap
 # LieGroup Classes
 import sys
 sys.path.insert(1, '/home/kestrel1311/git/ros2_ws/src/cognis_UAM/script/LieGroup')
-from SE3 import se3, SE3
-from SO3 import so3, DCM, Euler, MRP, Quat
 from SE2 import se2, SE2
-from SO2 import so2, SO2
 
 
 # R2T2 Code
@@ -130,8 +127,8 @@ class R2T2:
 
             # Step 3: Select movement
             # Currently we don't do weighted sampling
-            #switch = [0.8, 0.1, 0.1]
-            switch = [1, 0, 0]
+            switch = [0.8, 0.1, 0.1]
+            #switch = [1, 0, 0]
             Qnear = None
             Qnear_exist = False
             while not Qnear_exist:
@@ -167,7 +164,7 @@ class R2T2:
             Qroute = SE2(SE2.to_vec(self.local_path_planner(Qnear, Qnext, self.vmax*ti)))
 
             # Check collision
-            if self.collision_check(self.vradius, Qnear, Qroute, st_tvec):
+            if self.collision_check(self.vradius, Qnear, Qroute, st_tvec, len(st_tvec)):
                 bad_path.append(Qnext)
                 print("Route Collision Detected")
             else:
@@ -326,33 +323,53 @@ class R2T2:
 
         return u, R, d
 
-    def collision_check(self, vehicle_radius, Q0, Q1, qtvec):
+    def collision_check(self, vehicle_radius, Q0, Q1, qtvec, steps):
         V = SE2(SE2.to_vec(Q0 @ Q1))
-        print(V)
         v = SE2.log(V)
-        steps = len(qtvec)
         test_vector = np.linspace(0, 1, steps)
         for tt in test_vector:
-            print(type(v))
-            print(v)
-            print(SE2.to_vec(v))
-            print('\n')
-            afdasfdasf
-            Q = Q0.to_matrix @ SE2(v.to_vec*tt)
-            xt = SE2.to_vec(Q.to_matrix)[0]
-            yt = SE2.to_vec(Q.to_matrix)[1]
-            thetat = SE2.to_vec(Q.to_matrix)[2]
+            Q = Q0 @ SE2.exp(v.rmul(tt))
+            xt = SE2.to_vec(Q)[0]
+            yt = SE2.to_vec(Q)[1]
+            thetat = SE2.to_vec(Q)[2]
 
-            if not self.in_map(SE2.to_vec(Q.to_matrix)):
-                if bool(self.building_bound(SE2.to_vec(Q.to_matrix))):
+            if not self.in_map(SE2.to_vec(Q)):
+                if bool(self.building_bound(SE2.to_vec(Q))):
                     return True
             
             t_in_to_test, = np.where(test_vector == tt)
             t_to_test = qtvec[t_in_to_test[0]]
+
             if bool(self.dynamic_bound((xt, yt), t_to_test)):
                 return True
             
         return False
+    
+    def current_pos(self, Q0, Q1, V, qt_vec):
+        v = SE2.log(SE2(SE2.to_vec(Q0.inv@V.to_matrix)))
+        curr_path = {}
+        curr_path['x'] = []
+        curr_path['y'] = []
+        curr_path['t'] = []
+        curr_path['theta'] = []
+        tscale = qt_vec[-1] - qt_vec[0]
+
+        for tt in np.linspace(0, 1, len(qt_vec)):
+            Q = Q0@SE2.exp(v.rmul(tt))
+            xt = SE2.to_vec(Q)[0]
+            yt = SE2.to_vec(Q)[1]
+            thetat = SE2.to_vec(Q)[2]
+            curr_path['x'].append(xt)
+            curr_path['y'].append(yt)
+            curr_path['t'].append(qt_vec[0]+tscale*tt)
+            curr_path['theta'].append(thetat)
+
+            if self.collision_check(self.vradius, Q0, SE2(SE2.to_vec(Q)), [tt], 1):
+                return SE2(np.array([xt, yt, thetat])), curr_path
+            
+        return SE2(np.array([xt, yt, thetat])), curr_path
+
+
 
     # Functions for Step 7
     def rrt_course(self, G):
