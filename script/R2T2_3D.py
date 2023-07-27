@@ -8,10 +8,6 @@ from shapely import geometry
 from mpl_toolkits import mplot3d
 
 # Custom Classes
-from SE3 import se3, SE3
-from SO3 import so3, DCM, Euler, MRP, Quat
-from SE2 import se2, SE2
-from SO2 import so2, SO2
 from Camera_3D import Camera
 from Dynamic_3D import DynamicMap
 
@@ -105,8 +101,8 @@ class R2T2:
         G['t'] = []
         
         # Initialize R2T2
-        Xi = SE3(np.array([xi[0],xi[1],xi[2],xi[3],xi[4],xi[5]]))
-        Xf = SE3(np.array([xf[0],xf[1],xf[2],xf[3],xf[4],xf[5]]))
+        Xi = np.array([xi[0],xi[1],xi[2],xi[3],xi[4],xi[5]])
+        Xf = np.array([xf[0],xf[1],xf[2],xf[3],xf[4],xf[5]])
 
         # Check if of Xf at tf is good:
         if not self.static_bound(xf) or Xf is None: # or self.dynamic_bound(xf, self.endtime): TODO to fix
@@ -180,7 +176,6 @@ class R2T2:
             
             if not debug:
                 switch = [.8, .1, .1]
-                #switch = [1, 0, 0]
                 Qnear = None
                 Qnear_exist = False
                 while not Qnear_exist:
@@ -189,9 +184,9 @@ class R2T2:
                         if choose >= 0 and choose <= switch[0]:
                             print('Random')
                             # Get random point x1, and check whether or not it is valid
-                            Qnext = self.gen_node(mv_R, SE3.to_vec(Qnear_prev.to_matrix), 0, tprev)
+                            Qnext = self.gen_node(mv_R, Qnear_prev, 0, tprev)
                             Qnear_exist = True
-                        elif choose > switch[0] and choose <= switch[2]:
+                        elif choose > switch[0] and choose <= switch[0]+switch[1]:
                             print('Stationary')
                             # Statinoary
                             # TODO
@@ -210,8 +205,8 @@ class R2T2:
                 Qnear, tnear = self.nearest(G, SE3.to_vec(Qnext.to_matrix))
                 tnext = tnear+ti
             
-            print('Qnear ', SE3.to_vec(Qnear.to_matrix))
-            print('Qnext ', SE3.to_vec(Qnext.to_matrix))
+            print('Qnear ', Qnear)
+            print('Qnext ', Qnext)
             print('trange ', trange)
             print('ti ', ti)
             print('tnear ', tnear)
