@@ -2,8 +2,6 @@ import numpy as np
 from shapely import geometry 
 
 class Camera:
-    
-
     def __init__(self, cam_dict):
         # Mounted camera position and PT angle
         cam_pos_init = cam_dict['pos_init']
@@ -78,4 +76,5 @@ class Camera:
         time_interval = self.cam_period/self.cam_dt
 
         return np.linspace(pan_start, pan_end, int(time_interval))
+    
         
