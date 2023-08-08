@@ -1,5 +1,4 @@
 import numpy as np
-from shapely import geometry 
 
 class Camera:
     def __init__(self, cam_dict):
@@ -20,7 +19,7 @@ class Camera:
         self.cam_period = cam_spec['cam_time'][0]
         self.cam_dt = cam_spec['cam_time'][1]
 
-    def cam_state(self):
+    def get_state(self):
         return np.array([self.x0, self.y0, self.z0, self.pan, self.tilt])
     
     def get_direction_vec(self, pan, tilt):
