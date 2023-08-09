@@ -76,4 +76,8 @@ class Camera:
 
         return np.linspace(pan_start, pan_end, int(time_interval))
     
-        
+    def get_pan_instance(self, time_in):
+        pan_start = self.pan
+        pan_end = (self.pan + self.pan_lim)%(2*np.pi)
+        pan_instance = (pan_end-pan_start)/self.cam_period*(time_in%self.cam_period)
+        return pan_instance
